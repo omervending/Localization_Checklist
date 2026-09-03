@@ -117,7 +117,7 @@
 
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
-import { getFirestore, doc, getDoc, setDoc } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+import { initializeFirestore, doc, getDoc, setDoc } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 
 /* ─────────────────────────────────────────────────────────────
    PASTE YOUR FIREBASE CONFIG HERE (from Firebase console →
@@ -139,7 +139,10 @@ if (CONFIG_IS_PLACEHOLDER) {
 }
 
 const app = initializeApp(firebaseConfig);
-const db = getFirestore(app);
+const db = initializeFirestore(app, {
+  experimentalForceLongPolling: true,
+  useFetchStreams: false
+});
 const COLLECTION = "momo_checklists";
 const slugify = (lang) => lang.toLowerCase().replace(/\s+/g, "-");
 
@@ -246,7 +249,7 @@ async function loadLanguage(lang){
   document.getElementById("checklist-area").innerHTML = '<div class="empty-state"><h2>Loading checklist…</h2></div>';
   let data;
   try{
-    const snap = await getDoc(doc(db, COLLECTION, slugify(lang)));
+    const snap = await withTimeout(getDoc(doc(db, COLLECTION, slugify(lang))), 10000);
     data = snap.exists() ? snap.data() : blankData(lang);
   }catch(err){
     data = blankData(lang);
@@ -369,17 +372,31 @@ function markDirty(){
   if(statusEl){ statusEl.textContent = "Unsaved changes…"; statusEl.className = "save-status"; }
 }
 
+function withTimeout(promise, ms){
+  return Promise.race([
+    promise,
+    new Promise((_, reject) => setTimeout(()=> reject(new Error("timeout")), ms))
+  ]);
+}
+
 async function saveNow(){
   if(!currentData || !currentLang) return;
   const statusEl = document.getElementById("save-status");
   if(statusEl){ statusEl.textContent = "Saving…"; statusEl.className = "save-status saving"; }
   currentData.lastUpdated = new Date().toISOString();
   try{
-    await setDoc(doc(db, COLLECTION, slugify(currentLang)), currentData);
+    await withTimeout(setDoc(doc(db, COLLECTION, slugify(currentLang)), currentData), 10000);
     isDirty = false;
     if(statusEl){ statusEl.textContent = "Saved "+formatTime(currentData.lastUpdated); statusEl.className = "save-status saved"; }
   }catch(err){
-    if(statusEl){ statusEl.textContent = "Couldn't save — check your connection and try again."; statusEl.className = "save-status error"; }
+    if(statusEl){
+      if(err && err.message === "timeout"){
+        statusEl.textContent = "Save timed out — check your network connection and try again.";
+      } else {
+        statusEl.textContent = "Couldn't save — check your connection and try again.";
+      }
+      statusEl.className = "save-status error";
+    }
   }
 }
 

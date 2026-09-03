@@ -88,7 +88,7 @@
 
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
-import { getFirestore, collection, onSnapshot } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+import { initializeFirestore, collection, onSnapshot } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 
 /*
   ─────────────────────────────────────────────────────────────
@@ -121,7 +121,10 @@ if (CONFIG_IS_PLACEHOLDER) {
 }
 
 const app = initializeApp(firebaseConfig);
-const db = getFirestore(app);
+const db = initializeFirestore(app, {
+  experimentalForceLongPolling: true,
+  useFetchStreams: false
+});
 const COLLECTION = "momo_checklists";
 const slugify = (lang) => lang.toLowerCase().replace(/\s+/g, "-");
 
