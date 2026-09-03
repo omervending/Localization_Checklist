@@ -1,0 +1,287 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>MoMa 2.0 Translation — Admin Dashboard</title>
+<style>
+  :root{
+    --purple: #6D5BF7;
+    --purple-dark: #3F34A8;
+    --purple-tint: #F0EFFE;
+    --yellow: #FFCD00;
+    --yellow-grad: linear-gradient(90deg, #FFF0B4 0%, #FFED8B 50%, #FFCD00 100%);
+    --dark: #262626;
+    --gray-3: #666666;
+    --neutral-75: #E0E0E0;
+    --neutral-80: #F7F7F7;
+    --white: #FFFFFF;
+    --radius: 10px;
+    font-family: 'Hurme Geometric Sans No.3', 'Calibri', 'Helvetica Neue', Arial, sans-serif;
+  }
+  *{box-sizing:border-box;}
+  body{margin:0;background:var(--neutral-80);color:var(--dark);-webkit-font-smoothing:antialiased;}
+  .app{max-width:920px;margin:0 auto;padding:24px 20px 60px;}
+  .topbar{display:flex;align-items:center;gap:10px;margin-bottom:20px;}
+  .brand-mark{width:10px;height:28px;border-radius:3px;background:linear-gradient(180deg, var(--purple) 0%, var(--purple-dark) 100%);}
+  .topbar h1{font-size:19px;margin:0;line-height:1.2;}
+  .topbar span{display:block;font-size:12px;color:var(--gray-3);font-weight:500;}
+  .gate{max-width:360px;margin:80px auto;background:var(--white);border:1px solid var(--neutral-75);border-radius:var(--radius);padding:28px;text-align:center;}
+  .gate h2{font-size:16px;margin:0 0 6px;}
+  .gate p{font-size:13px;color:var(--gray-3);margin:0 0 18px;}
+  .gate input{width:100%;padding:11px 12px;border:1px solid var(--neutral-75);border-radius:8px;font-size:14px;text-align:center;letter-spacing:2px;}
+  .gate button{width:100%;margin-top:12px;border:none;border-radius:8px;padding:11px;font-size:14px;font-weight:700;background:var(--yellow);color:var(--dark);cursor:pointer;}
+  .gate .error{color:#CC2B42;font-size:12.5px;margin-top:10px;display:none;}
+  .dashboard{display:none;}
+  .overview-toolbar{display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;flex-wrap:wrap;gap:10px;}
+  .overview-toolbar .refresh-info{font-size:12px;color:var(--gray-3);}
+  .live-dot{display:inline-block;width:8px;height:8px;border-radius:50%;background:#1FAE6B;margin-right:6px;}
+  .config-warning{background:#FFF4E5;border:1px solid #FFD08A;color:#7A4B00;border-radius:8px;padding:12px 16px;font-size:13px;margin-bottom:16px;}
+  .summary-bar{background:var(--white);border:1px solid var(--neutral-75);border-radius:var(--radius);padding:16px 18px;margin-bottom:16px;display:flex;gap:24px;flex-wrap:wrap;}
+  .summary-stat b{display:block;font-size:22px;}
+  .summary-stat span{font-size:12px;color:var(--gray-3);}
+  .lang-card{background:var(--white);border:1px solid var(--neutral-75);border-radius:var(--radius);padding:16px 18px;margin-bottom:10px;}
+  .lang-card-top{display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;}
+  .lang-card-top .lname{font-size:14.5px;font-weight:700;}
+  .lang-card-top .lmeta{font-size:12px;color:var(--gray-3);font-weight:500;}
+  .progress-track{height:10px;border-radius:6px;background:var(--neutral-75);overflow:hidden;margin-top:10px;}
+  .progress-fill{height:100%;background:var(--yellow-grad);border-radius:6px;}
+  .pct-badge{font-size:13px;font-weight:800;color:var(--purple-dark);min-width:42px;text-align:right;}
+  .lang-card details{margin-top:10px;}
+  .lang-card summary{font-size:12px;font-weight:600;color:var(--purple-dark);cursor:pointer;}
+  .note-line{font-size:12.5px;color:var(--dark);padding:5px 0;border-bottom:1px dashed var(--neutral-75);}
+  .note-line:last-child{border-bottom:none;}
+  .note-line b{font-weight:700;}
+  @media (max-width:520px){ .app{padding:16px 14px 50px;} }
+</style>
+</head>
+<body>
+<div class="app">
+  <div class="topbar">
+    <div class="brand-mark"></div>
+    <div>
+      <h1>MoMa 2.0 Translation — Admin Dashboard</h1>
+      <span>Live progress across all languages</span>
+    </div>
+  </div>
+
+  <div id="config-warning-area"></div>
+
+  <div class="gate" id="gate">
+    <h2>Admin access</h2>
+    <p>Enter the passcode to view translator progress.</p>
+    <input type="password" id="passcode-input" placeholder="Passcode" autocomplete="off">
+    <button id="unlock-btn">Unlock</button>
+    <div class="error" id="gate-error">Incorrect passcode. Try again.</div>
+  </div>
+
+  <div class="dashboard" id="dashboard">
+    <div class="summary-bar" id="summary-bar"></div>
+    <div class="overview-toolbar">
+      <div class="refresh-info" id="refresh-info"><span class="live-dot"></span>Waiting for data…</div>
+    </div>
+    <div id="overview-area">
+      <div style="text-align:center;padding:40px;color:#666;">Loading progress…</div>
+    </div>
+  </div>
+</div>
+
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
+import { getFirestore, collection, onSnapshot } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+
+/*
+  ─────────────────────────────────────────────────────────────
+  CHANGE THIS PASSCODE before sharing this file with anyone else.
+  This is a lightweight deterrent, not real security — anyone who
+  views this page's source can read the value below. Don't reuse
+  a password you care about, and treat "don't share this file's
+  link" as the real boundary.
+  ─────────────────────────────────────────────────────────────
+*/
+const ADMIN_PASSCODE = "omernayax";
+
+/* ─────────────────────────────────────────────────────────────
+   PASTE YOUR FIREBASE CONFIG HERE — must match the translator
+   file exactly, so both read/write the same data.
+   ───────────────────────────────────────────────────────────── */
+const firebaseConfig = {
+  apiKey: "YOUR_API_KEY",
+  authDomain: "YOUR_PROJECT.firebaseapp.com",
+  projectId: "YOUR_PROJECT",
+  storageBucket: "YOUR_PROJECT.appspot.com",
+  messagingSenderId: "YOUR_SENDER_ID",
+  appId: "YOUR_APP_ID"
+};
+
+const CONFIG_IS_PLACEHOLDER = firebaseConfig.apiKey === "YOUR_API_KEY";
+if (CONFIG_IS_PLACEHOLDER) {
+  document.getElementById("config-warning-area").innerHTML =
+    '<div class="config-warning">This file still has placeholder Firebase settings. The dashboard won\u2019t load data until the firebaseConfig object near the top of the &lt;script&gt; tag is replaced with your real project config (the same one used in the translator file).</div>';
+}
+
+const app = initializeApp(firebaseConfig);
+const db = getFirestore(app);
+const COLLECTION = "momo_checklists";
+const slugify = (lang) => lang.toLowerCase().replace(/\s+/g, "-");
+
+const LANGUAGES = [
+  "Arabic","Bulgarian","Croatian","Czech","Danish","Dutch","Finnish","French",
+  "French Canada","German","Greek","Hungarian","Italian","Japanese","Latvian","Norwegian",
+  "Polish","Portuguese Brasil","Portuguese Portugal","Romanian","Russian","Slovak",
+  "Spanish Argentina","Spanish Mexico","Spanish Spain","Swedish","Turkish","Ukrainian"
+];
+
+const SECTIONS = [
+  { id:"s1", title:"Screens → MoMa 2.0", items:[
+    {id:"general_text", label:"General text for translations"},
+    {id:"login_page", label:"Login page"},
+    {id:"tasks", label:"Tasks"},
+    {id:"machine", label:"Machine"},
+    {id:"dashboards", label:"Dashboards"},
+    {id:"alerts", label:"Alerts"},
+    {id:"more", label:"More"}
+  ]},
+  { id:"s2", title:"Actor Types", items:[
+    {id:"actor_types", label:"Actor Types"}
+  ]},
+  { id:"s3", title:"Event Configuration", items:[
+    {id:"cash_level", label:"Cash Level"},
+    {id:"communication", label:"Communication"},
+    {id:"dex_alerts", label:"DEX Alerts"},
+    {id:"sales", label:"Sales"},
+    {id:"service_alerts", label:"Service Alerts"},
+    {id:"stock_level", label:"Stock Level"},
+    {id:"system", label:"System"},
+    {id:"vmc", label:"VMC"},
+    {id:"brinks", label:"Brinks"}
+  ]},
+  { id:"s4", title:"Statuses", items:[
+    {id:"statuses", label:"Statuses"}
+  ]},
+  { id:"s5", title:"Lookup Tables", items:[
+    {id:"card_physical_type", label:"Card Physical Type"},
+    {id:"card_type", label:"Card Type"},
+    {id:"commission_type", label:"commission_type"},
+    {id:"driver_skills", label:"Driver Skills"},
+    {id:"entity_type", label:"Entity Type"},
+    {id:"entity_mode", label:"Entity Mode"},
+    {id:"generate_picklist", label:"Generate picklist"},
+    {id:"ingredient_unit", label:"Ingredient Unit"},
+    {id:"ingredient_unit_symbol", label:"Ingredient Unit Symbol"},
+    {id:"job_function", label:"Job Function"},
+    {id:"nayax_machine_type", label:"Nayax Machine Type"},
+    {id:"read_dex_period", label:"Read Dex Period"},
+    {id:"scheduler_task_status", label:"Scheduler Task Status"},
+    {id:"scheduler_task_type", label:"Scheduler Task Type"},
+    {id:"selection_type", label:"Selection Type"},
+    {id:"send_on_hours", label:"Send on hours"},
+    {id:"technician_card_action", label:"Technician Card Action"},
+    {id:"time_interval_reports", label:"Time interval (used in reports)"},
+    {id:"v2v", label:"V2V"},
+    {id:"value_check", label:"Value Check"},
+    {id:"widget_category", label:"Widget Category"},
+    {id:"widget_group", label:"Widget Group"},
+    {id:"work_hour", label:"Work Hour"}
+  ]}
+];
+
+const TOTAL_ITEMS = SECTIONS.reduce((sum, s) => sum + s.items.length, 0);
+let unsubscribe = null;
+
+document.getElementById("unlock-btn").addEventListener("click", tryUnlock);
+document.getElementById("passcode-input").addEventListener("keydown", (e)=>{ if(e.key === "Enter") tryUnlock(); });
+
+function tryUnlock(){
+  const val = document.getElementById("passcode-input").value;
+  if(val === ADMIN_PASSCODE){
+    document.getElementById("gate").style.display = "none";
+    document.getElementById("dashboard").style.display = "block";
+    startLiveListener();
+  } else {
+    document.getElementById("gate-error").style.display = "block";
+  }
+}
+
+function startLiveListener(){
+  if(unsubscribe) unsubscribe();
+  unsubscribe = onSnapshot(collection(db, COLLECTION), (snapshot)=>{
+    const bySlug = {};
+    snapshot.forEach(docSnap => { bySlug[docSnap.id] = docSnap.data(); });
+    renderOverview(bySlug);
+    document.getElementById("refresh-info").innerHTML =
+      '<span class="live-dot"></span>Live · updated '+new Date().toLocaleTimeString([], {hour:"2-digit", minute:"2-digit", second:"2-digit"});
+  }, (err)=>{
+    document.getElementById("refresh-info").textContent = "Connection error — check your Firebase config and rules.";
+  });
+}
+
+function renderOverview(bySlug){
+  const area = document.getElementById("overview-area");
+  const rows = LANGUAGES.map(lang=>{
+    const data = bySlug[slugify(lang)];
+    if(!data) return { lang, started:false };
+    const checked = SECTIONS.reduce((sum,s)=> sum + s.items.filter(i=>data.items && data.items[i.id]).length, 0);
+    const pct = TOTAL_ITEMS ? Math.round((checked/TOTAL_ITEMS)*100) : 0;
+    const noteEntries = [];
+    SECTIONS.forEach(s=>{
+      const secNote = data.sectionNotes && data.sectionNotes[s.id];
+      if(secNote && secNote.trim()) noteEntries.push({label: s.title+" (section note)", text: secNote.trim()});
+      s.items.forEach(i=>{
+        const n = data.itemNotes && data.itemNotes[i.id];
+        if(n && n.trim()) noteEntries.push({label: i.label, text: n.trim()});
+      });
+    });
+    return { lang, started:true, checked, pct, translatorName: data.translatorName || "", lastUpdated: data.lastUpdated, notes: noteEntries };
+  });
+
+  rows.sort((a,b)=>{
+    if(a.started !== b.started) return a.started ? -1 : 1;
+    return (b.pct||0) - (a.pct||0);
+  });
+
+  const startedRows = rows.filter(r=>r.started);
+  const avgPct = startedRows.length ? Math.round(startedRows.reduce((s,r)=>s+r.pct,0)/startedRows.length) : 0;
+  const completeCount = startedRows.filter(r=>r.pct===100).length;
+  document.getElementById("summary-bar").innerHTML =
+    '<div class="summary-stat"><b>'+startedRows.length+' / '+LANGUAGES.length+'</b><span>languages started</span></div>'+
+    '<div class="summary-stat"><b>'+completeCount+'</b><span>fully complete</span></div>'+
+    '<div class="summary-stat"><b>'+avgPct+'%</b><span>average progress (started langs)</span></div>';
+
+  area.innerHTML = "";
+  rows.forEach(r=>{
+    const card = document.createElement("div");
+    card.className = "lang-card";
+    if(!r.started){
+      card.innerHTML = '<div class="lang-card-top"><span class="lname">'+r.lang+'</span><span class="lmeta">Not started</span></div>';
+    } else {
+      card.innerHTML =
+        '<div class="lang-card-top">'+
+          '<span class="lname">'+r.lang+(r.translatorName ? ' <span class="lmeta">· '+escapeHtml(r.translatorName)+'</span>' : '')+'</span>'+
+          '<span class="pct-badge">'+r.pct+'%</span>'+
+        '</div>'+
+        '<div class="progress-track"><div class="progress-fill" style="width:'+r.pct+'%;"></div></div>'+
+        '<div class="lmeta" style="margin-top:6px;">'+r.checked+' / '+TOTAL_ITEMS+' items · updated '+(r.lastUpdated ? formatTime(r.lastUpdated) : "—")+'</div>';
+      if(r.notes.length){
+        const details = document.createElement("details");
+        const summary = document.createElement("summary");
+        summary.textContent = "View "+r.notes.length+" note"+(r.notes.length>1?"s":"");
+        details.appendChild(summary);
+        r.notes.forEach(n=>{
+          const line = document.createElement("div");
+          line.className = "note-line";
+          line.innerHTML = "<b>"+escapeHtml(n.label)+":</b> "+escapeHtml(n.text);
+          details.appendChild(line);
+        });
+        card.appendChild(details);
+      }
+    }
+    area.appendChild(card);
+  });
+}
+
+function formatTime(iso){ try{ return new Date(iso).toLocaleTimeString([], {hour:"2-digit", minute:"2-digit"}); }catch(e){ return ""; } }
+function escapeHtml(str){ const div = document.createElement("div"); div.textContent = str; return div.innerHTML; }
+</script>
+</body>
+</html>

@@ -1,0 +1,394 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>MoMa 2.0 Translation Checklist</title>
+<style>
+  :root{
+    --purple: #6D5BF7;
+    --purple-dark: #3F34A8;
+    --purple-tint: #F0EFFE;
+    --yellow: #FFCD00;
+    --yellow-grad: linear-gradient(90deg, #FFF0B4 0%, #FFED8B 50%, #FFCD00 100%);
+    --dark: #262626;
+    --gray-3: #666666;
+    --neutral-70: #D9D9D9;
+    --neutral-75: #E0E0E0;
+    --neutral-80: #F7F7F7;
+    --white: #FFFFFF;
+    --green: #1FAE6B;
+    --radius: 10px;
+    font-family: 'Hurme Geometric Sans No.3', 'Calibri', 'Helvetica Neue', Arial, sans-serif;
+  }
+  *{box-sizing:border-box;}
+  body{margin:0;background:var(--neutral-80);color:var(--dark);-webkit-font-smoothing:antialiased;}
+  .app{max-width:920px;margin:0 auto;padding:24px 20px 80px;}
+  .topbar{display:flex;align-items:center;gap:10px;margin-bottom:20px;}
+  .brand-mark{width:10px;height:28px;border-radius:3px;background:var(--yellow-grad);}
+  .topbar h1{font-size:19px;margin:0;line-height:1.2;}
+  .topbar span{display:block;font-size:12px;color:var(--gray-3);font-weight:500;}
+  .picker-card{background:var(--white);border:1px solid var(--neutral-75);border-radius:var(--radius);padding:20px;margin-bottom:20px;}
+  .picker-row{display:flex;gap:14px;flex-wrap:wrap;}
+  .field{flex:1;min-width:200px;}
+  .field label{display:block;font-size:12px;font-weight:700;color:var(--gray-3);margin-bottom:6px;}
+  select, input[type=text], textarea{
+    width:100%;padding:10px 12px;border:1px solid var(--neutral-75);border-radius:8px;
+    font-size:14px;color:var(--dark);background:var(--white);font-family:inherit;
+  }
+  select:focus, input:focus, textarea:focus{outline:2px solid var(--purple);outline-offset:1px;border-color:var(--purple);}
+  .progress-wrap{margin-top:18px;}
+  .progress-label{display:flex;justify-content:space-between;font-size:13px;font-weight:600;margin-bottom:6px;}
+  .progress-track{height:10px;border-radius:6px;background:var(--neutral-75);overflow:hidden;}
+  .progress-fill{height:100%;background:var(--yellow-grad);border-radius:6px;transition:width .3s ease;}
+  .section-card{background:var(--white);border:1px solid var(--neutral-75);border-radius:var(--radius);margin-bottom:16px;overflow:hidden;}
+  .section-head{padding:14px 18px;border-bottom:1px solid var(--neutral-75);display:flex;justify-content:space-between;align-items:baseline;gap:10px;flex-wrap:wrap;}
+  .section-head h2{font-size:15px;margin:0;}
+  .section-head .step-tag{font-size:11px;font-weight:700;color:var(--purple-dark);background:var(--purple-tint);padding:3px 8px;border-radius:5px;margin-right:8px;}
+  .section-head .sub{font-size:12px;color:var(--gray-3);}
+  .section-head .count{font-size:12px;color:var(--gray-3);font-weight:600;white-space:nowrap;}
+  .item-row{display:flex;align-items:flex-start;gap:12px;padding:10px 18px;border-bottom:1px solid var(--neutral-80);}
+  .item-row:last-child{border-bottom:none;}
+  .item-row input[type=checkbox]{width:18px;height:18px;margin-top:2px;accent-color:var(--purple);flex-shrink:0;cursor:pointer;}
+  .item-main{flex:1;min-width:0;}
+  .item-main label{font-size:14px;font-weight:500;cursor:pointer;display:block;}
+  .item-row.checked .item-main label{color:var(--gray-3);text-decoration:line-through;text-decoration-color:var(--neutral-70);}
+  .item-note{margin-top:6px;width:100%;padding:6px 10px;font-size:12.5px;border:1px solid var(--neutral-75);border-radius:6px;color:var(--dark);}
+  .item-note::placeholder{color:#A8A8A8;}
+  .section-note-wrap{padding:12px 18px;background:var(--neutral-80);}
+  .section-note-wrap label{font-size:11px;font-weight:700;color:var(--gray-3);display:block;margin-bottom:5px;}
+  .section-note-wrap textarea{min-height:44px;resize:vertical;font-size:13px;}
+  .savebar{
+    position:sticky;bottom:0;left:0;right:0;background:var(--white);border-top:1px solid var(--neutral-75);
+    padding:14px 18px;margin:0 -20px;display:flex;align-items:center;justify-content:space-between;
+    gap:12px;flex-wrap:wrap;border-radius:0 0 var(--radius) var(--radius);
+  }
+  .save-status{font-size:12.5px;color:var(--gray-3);}
+  .save-status.saving{color:var(--purple-dark);}
+  .save-status.saved{color:var(--green);}
+  .save-status.error{color:#CC2B42;}
+  .btn{border:none;border-radius:8px;padding:11px 20px;font-size:14px;font-weight:700;cursor:pointer;}
+  .btn-primary{background:var(--yellow);color:var(--dark);}
+  .btn-primary:hover{background:#FFE066;}
+  .empty-state{text-align:center;padding:60px 20px;color:var(--gray-3);}
+  .empty-state h2{color:var(--dark);font-size:16px;}
+  .config-warning{background:#FFF4E5;border:1px solid #FFD08A;color:#7A4B00;border-radius:8px;padding:12px 16px;font-size:13px;margin-bottom:16px;}
+  @media (max-width:520px){ .app{padding:16px 14px 70px;} .savebar{margin:0 -14px;} }
+</style>
+</head>
+<body>
+<div class="app">
+  <div class="topbar">
+    <div class="brand-mark"></div>
+    <div>
+      <h1>MoMa 2.0 Translation Checklist</h1>
+      <span>Your progress saves automatically as you go</span>
+    </div>
+  </div>
+
+  <div id="config-warning-area"></div>
+
+  <div class="picker-card">
+    <div class="picker-row">
+      <div class="field">
+        <label for="lang-select">Language</label>
+        <select id="lang-select">
+          <option value="">Select your language…</option>
+        </select>
+      </div>
+      <div class="field">
+        <label for="name-input">Your name (optional)</label>
+        <input type="text" id="name-input" placeholder="e.g. Jamie">
+      </div>
+    </div>
+    <div class="progress-wrap" id="overall-progress-wrap" style="display:none;">
+      <div class="progress-label"><span>Overall progress</span><span id="overall-progress-text">0 / 0</span></div>
+      <div class="progress-track"><div class="progress-fill" id="overall-progress-fill" style="width:0%;"></div></div>
+    </div>
+  </div>
+
+  <div id="checklist-area">
+    <div class="empty-state">
+      <h2>Pick a language to begin</h2>
+      <p>Your checkboxes and notes save automatically, and you can always pick this checklist back up later.</p>
+    </div>
+  </div>
+</div>
+
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
+import { getFirestore, doc, getDoc, setDoc } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+
+/* ─────────────────────────────────────────────────────────────
+   PASTE YOUR FIREBASE CONFIG HERE (from Firebase console →
+   Project settings → Your apps → the </> web app you registered).
+   ───────────────────────────────────────────────────────────── */
+const firebaseConfig = {
+  apiKey: "YOUR_API_KEY",
+  authDomain: "YOUR_PROJECT.firebaseapp.com",
+  projectId: "YOUR_PROJECT",
+  storageBucket: "YOUR_PROJECT.appspot.com",
+  messagingSenderId: "YOUR_SENDER_ID",
+  appId: "YOUR_APP_ID"
+};
+
+const CONFIG_IS_PLACEHOLDER = firebaseConfig.apiKey === "YOUR_API_KEY";
+if (CONFIG_IS_PLACEHOLDER) {
+  document.getElementById("config-warning-area").innerHTML =
+    '<div class="config-warning">This file still has placeholder Firebase settings. Saving won\u2019t work until the firebaseConfig object near the top of the &lt;script&gt; tag is replaced with your real project config.</div>';
+}
+
+const app = initializeApp(firebaseConfig);
+const db = getFirestore(app);
+const COLLECTION = "momo_checklists";
+const slugify = (lang) => lang.toLowerCase().replace(/\s+/g, "-");
+
+const LANGUAGES = [
+  "Arabic","Bulgarian","Croatian","Czech","Danish","Dutch","Finnish","French",
+  "French Canada","German","Greek","Hungarian","Italian","Japanese","Latvian","Norwegian",
+  "Polish","Portuguese Brasil","Portuguese Portugal","Romanian","Russian","Slovak",
+  "Spanish Argentina","Spanish Mexico","Spanish Spain","Swedish","Turkish","Ukrainian"
+];
+
+const SECTIONS = [
+  { id:"s1", step:"Step 1", title:"Screens → MoMa 2.0", items:[
+    {id:"general_text", label:"General text for translations"},
+    {id:"login_page", label:"Login page"},
+    {id:"tasks", label:"Tasks"},
+    {id:"machine", label:"Machine"},
+    {id:"dashboards", label:"Dashboards"},
+    {id:"alerts", label:"Alerts"},
+    {id:"more", label:"More"}
+  ]},
+  { id:"s2", step:"Step 2", title:"Actor Types", items:[
+    {id:"actor_types", label:"Actor Types"}
+  ]},
+  { id:"s3", step:"Step 3", title:"Event Configuration", sub:"Source: Alert System · Category: V2V Alerts", items:[
+    {id:"cash_level", label:"Cash Level"},
+    {id:"communication", label:"Communication"},
+    {id:"dex_alerts", label:"DEX Alerts"},
+    {id:"sales", label:"Sales"},
+    {id:"service_alerts", label:"Service Alerts"},
+    {id:"stock_level", label:"Stock Level"},
+    {id:"system", label:"System"},
+    {id:"vmc", label:"VMC"},
+    {id:"brinks", label:"Brinks"}
+  ]},
+  { id:"s4", step:"Step 4", title:"Statuses", items:[
+    {id:"statuses", label:"Statuses"}
+  ]},
+  { id:"s5", step:"Step 5", title:"Lookup Tables", items:[
+    {id:"card_physical_type", label:"Card Physical Type"},
+    {id:"card_type", label:"Card Type"},
+    {id:"commission_type", label:"commission_type"},
+    {id:"driver_skills", label:"Driver Skills"},
+    {id:"entity_type", label:"Entity Type"},
+    {id:"entity_mode", label:"Entity Mode"},
+    {id:"generate_picklist", label:"Generate picklist"},
+    {id:"ingredient_unit", label:"Ingredient Unit"},
+    {id:"ingredient_unit_symbol", label:"Ingredient Unit Symbol"},
+    {id:"job_function", label:"Job Function"},
+    {id:"nayax_machine_type", label:"Nayax Machine Type"},
+    {id:"read_dex_period", label:"Read Dex Period"},
+    {id:"scheduler_task_status", label:"Scheduler Task Status"},
+    {id:"scheduler_task_type", label:"Scheduler Task Type"},
+    {id:"selection_type", label:"Selection Type"},
+    {id:"send_on_hours", label:"Send on hours"},
+    {id:"technician_card_action", label:"Technician Card Action"},
+    {id:"time_interval_reports", label:"Time interval (used in reports)"},
+    {id:"v2v", label:"V2V"},
+    {id:"value_check", label:"Value Check"},
+    {id:"widget_category", label:"Widget Category"},
+    {id:"widget_group", label:"Widget Group"},
+    {id:"work_hour", label:"Work Hour"}
+  ]}
+];
+
+const TOTAL_ITEMS = SECTIONS.reduce((sum, s) => sum + s.items.length, 0);
+const AUTOSAVE_INTERVAL_MS = 30000;
+
+function blankData(lang){
+  return { language: lang, translatorName: "", items: {}, itemNotes: {}, sectionNotes: {}, lastUpdated: null };
+}
+
+let currentLang = null;
+let currentData = null;
+let isDirty = false;
+
+const langSelect = document.getElementById("lang-select");
+LANGUAGES.forEach(l=>{
+  const opt = document.createElement("option");
+  opt.value = l; opt.textContent = l;
+  langSelect.appendChild(opt);
+});
+
+langSelect.addEventListener("change", async ()=>{
+  if(isDirty && currentLang){ await saveNow(); }
+  const lang = langSelect.value;
+  if(!lang){
+    currentLang = null; currentData = null;
+    renderEmpty();
+    document.getElementById("overall-progress-wrap").style.display = "none";
+    return;
+  }
+  currentLang = lang;
+  document.getElementById("overall-progress-wrap").style.display = "block";
+  await loadLanguage(lang);
+});
+
+document.getElementById("name-input").addEventListener("input", (e)=>{
+  if(!currentData) return;
+  currentData.translatorName = e.target.value;
+  markDirty();
+});
+
+async function loadLanguage(lang){
+  document.getElementById("checklist-area").innerHTML = '<div class="empty-state"><h2>Loading checklist…</h2></div>';
+  let data;
+  try{
+    const snap = await getDoc(doc(db, COLLECTION, slugify(lang)));
+    data = snap.exists() ? snap.data() : blankData(lang);
+  }catch(err){
+    data = blankData(lang);
+  }
+  data.items = data.items || {};
+  data.itemNotes = data.itemNotes || {};
+  data.sectionNotes = data.sectionNotes || {};
+  currentData = data;
+  isDirty = false;
+  document.getElementById("name-input").value = data.translatorName || "";
+  renderChecklist();
+}
+
+function renderEmpty(){
+  document.getElementById("checklist-area").innerHTML =
+    '<div class="empty-state"><h2>Pick a language to begin</h2>' +
+    '<p>Your checkboxes and notes save automatically, and you can always pick this checklist back up later.</p></div>';
+}
+
+function renderChecklist(){
+  const area = document.getElementById("checklist-area");
+  area.innerHTML = "";
+
+  SECTIONS.forEach(section=>{
+    const card = document.createElement("div");
+    card.className = "section-card";
+    const checkedInSection = section.items.filter(i => currentData.items[i.id]).length;
+    const head = document.createElement("div");
+    head.className = "section-head";
+    head.innerHTML =
+      '<div><span class="step-tag">'+section.step+'</span><h2 style="display:inline;">'+section.title+'</h2>' +
+      (section.sub ? '<div class="sub">'+section.sub+'</div>' : '') + '</div>' +
+      '<div class="count">'+checkedInSection+' / '+section.items.length+'</div>';
+    card.appendChild(head);
+
+    section.items.forEach(item=>{
+      const row = document.createElement("div");
+      const isChecked = !!currentData.items[item.id];
+      row.className = "item-row" + (isChecked ? " checked" : "");
+
+      const cb = document.createElement("input");
+      cb.type = "checkbox";
+      cb.checked = isChecked;
+      cb.id = "chk-"+item.id;
+      cb.addEventListener("change", ()=>{
+        currentData.items[item.id] = cb.checked;
+        row.classList.toggle("checked", cb.checked);
+        updateProgress();
+        markDirty();
+      });
+
+      const main = document.createElement("div");
+      main.className = "item-main";
+      const label = document.createElement("label");
+      label.setAttribute("for","chk-"+item.id);
+      label.textContent = item.label;
+      main.appendChild(label);
+
+      const note = document.createElement("input");
+      note.type = "text";
+      note.className = "item-note";
+      note.placeholder = "Note to self (optional)";
+      note.value = currentData.itemNotes[item.id] || "";
+      note.addEventListener("input", ()=>{
+        currentData.itemNotes[item.id] = note.value;
+        markDirty();
+      });
+      main.appendChild(note);
+
+      row.appendChild(cb);
+      row.appendChild(main);
+      card.appendChild(row);
+    });
+
+    const noteWrap = document.createElement("div");
+    noteWrap.className = "section-note-wrap";
+    noteWrap.innerHTML = '<label>Section note</label>';
+    const sectionNote = document.createElement("textarea");
+    sectionNote.value = currentData.sectionNotes[section.id] || "";
+    sectionNote.placeholder = "Anything worth flagging about this section…";
+    sectionNote.addEventListener("input", ()=>{
+      currentData.sectionNotes[section.id] = sectionNote.value;
+      markDirty();
+    });
+    noteWrap.appendChild(sectionNote);
+    card.appendChild(noteWrap);
+    area.appendChild(card);
+  });
+
+  const savebar = document.createElement("div");
+  savebar.className = "savebar";
+  savebar.innerHTML =
+    '<span class="save-status" id="save-status">'+(currentData.lastUpdated ? "Last saved "+formatTime(currentData.lastUpdated) : "Not saved yet")+'</span>' +
+    '<button class="btn btn-primary" id="save-btn">Save</button>';
+  area.appendChild(savebar);
+  document.getElementById("save-btn").addEventListener("click", saveNow);
+
+  updateProgress();
+}
+
+function updateProgress(){
+  if(!currentData) return;
+  const checked = SECTIONS.reduce((sum,s)=> sum + s.items.filter(i=>currentData.items[i.id]).length, 0);
+  const pct = TOTAL_ITEMS ? Math.round((checked/TOTAL_ITEMS)*100) : 0;
+  document.getElementById("overall-progress-text").textContent = checked+" / "+TOTAL_ITEMS;
+  document.getElementById("overall-progress-fill").style.width = pct+"%";
+  document.querySelectorAll(".section-card").forEach((card, idx)=>{
+    const section = SECTIONS[idx];
+    const countEl = card.querySelector(".count");
+    if(countEl){
+      const c = section.items.filter(i=>currentData.items[i.id]).length;
+      countEl.textContent = c+" / "+section.items.length;
+    }
+  });
+}
+
+function markDirty(){
+  isDirty = true;
+  const statusEl = document.getElementById("save-status");
+  if(statusEl){ statusEl.textContent = "Unsaved changes…"; statusEl.className = "save-status"; }
+}
+
+async function saveNow(){
+  if(!currentData || !currentLang) return;
+  const statusEl = document.getElementById("save-status");
+  if(statusEl){ statusEl.textContent = "Saving…"; statusEl.className = "save-status saving"; }
+  currentData.lastUpdated = new Date().toISOString();
+  try{
+    await setDoc(doc(db, COLLECTION, slugify(currentLang)), currentData);
+    isDirty = false;
+    if(statusEl){ statusEl.textContent = "Saved "+formatTime(currentData.lastUpdated); statusEl.className = "save-status saved"; }
+  }catch(err){
+    if(statusEl){ statusEl.textContent = "Couldn't save — check your connection and try again."; statusEl.className = "save-status error"; }
+  }
+}
+
+function formatTime(iso){
+  try{ return new Date(iso).toLocaleTimeString([], {hour:"2-digit", minute:"2-digit"}); }catch(e){ return ""; }
+}
+
+setInterval(()=>{ if(isDirty && currentData && currentLang){ saveNow(); } }, AUTOSAVE_INTERVAL_MS);
+window.addEventListener("beforeunload", ()=>{ if(isDirty && currentData && currentLang){ saveNow(); } });
+</script>
+</body>
+</html>
