@@ -52,6 +52,17 @@
   .note-line{font-size:12.5px;color:var(--dark);padding:5px 0;border-bottom:1px dashed var(--neutral-75);}
   .note-line:last-child{border-bottom:none;}
   .note-line b{font-weight:700;}
+  .section-block{margin-top:14px;padding-top:10px;border-top:1px solid var(--neutral-75);}
+  .section-block:first-of-type{margin-top:10px;}
+  .section-block-title{font-size:12px;font-weight:700;color:var(--purple-dark);margin-bottom:6px;}
+  .section-note-line{font-size:12px;color:var(--dark);background:var(--neutral-80);border-radius:6px;padding:6px 10px;margin-bottom:8px;}
+  .section-note-line b{font-weight:700;}
+  .check-item{display:flex;align-items:baseline;gap:8px;font-size:12.5px;padding:3px 0;color:var(--gray-3);}
+  .check-item.checked{color:var(--dark);}
+  .check-item .check-mark{width:14px;flex-shrink:0;font-weight:700;color:var(--neutral-75);}
+  .check-item.checked .check-mark{color:#1FAE6B;}
+  .check-item .check-label{flex-shrink:0;}
+  .check-item .check-note{color:var(--gray-3);font-style:italic;}
   @media (max-width:520px){ .app{padding:16px 14px 50px;} }
 </style>
 </head>
@@ -226,16 +237,16 @@ function renderOverview(bySlug){
     if(!data) return { lang, started:false };
     const checked = SECTIONS.reduce((sum,s)=> sum + s.items.filter(i=>data.items && data.items[i.id]).length, 0);
     const pct = TOTAL_ITEMS ? Math.round((checked/TOTAL_ITEMS)*100) : 0;
-    const noteEntries = [];
-    SECTIONS.forEach(s=>{
-      const secNote = data.sectionNotes && data.sectionNotes[s.id];
-      if(secNote && secNote.trim()) noteEntries.push({label: s.title+" (section note)", text: secNote.trim()});
-      s.items.forEach(i=>{
-        const n = data.itemNotes && data.itemNotes[i.id];
-        if(n && n.trim()) noteEntries.push({label: i.label, text: n.trim()});
-      });
-    });
-    return { lang, started:true, checked, pct, translatorName: data.translatorName || "", lastUpdated: data.lastUpdated, notes: noteEntries };
+    const breakdown = SECTIONS.map(s=>({
+      title: s.title,
+      sectionNote: (data.sectionNotes && data.sectionNotes[s.id]) ? data.sectionNotes[s.id].trim() : "",
+      items: s.items.map(i=>({
+        label: i.label,
+        checked: !!(data.items && data.items[i.id]),
+        note: (data.itemNotes && data.itemNotes[i.id]) ? data.itemNotes[i.id].trim() : ""
+      }))
+    }));
+    return { lang, started:true, checked, pct, translatorName: data.translatorName || "", lastUpdated: data.lastUpdated, breakdown };
   });
 
   rows.sort((a,b)=>{
@@ -265,19 +276,33 @@ function renderOverview(bySlug){
         '</div>'+
         '<div class="progress-track"><div class="progress-fill" style="width:'+r.pct+'%;"></div></div>'+
         '<div class="lmeta" style="margin-top:6px;">'+r.checked+' / '+TOTAL_ITEMS+' items · updated '+(r.lastUpdated ? formatTime(r.lastUpdated) : "—")+'</div>';
-      if(r.notes.length){
-        const details = document.createElement("details");
-        const summary = document.createElement("summary");
-        summary.textContent = "View "+r.notes.length+" note"+(r.notes.length>1?"s":"");
-        details.appendChild(summary);
-        r.notes.forEach(n=>{
+      const details = document.createElement("details");
+      const summary = document.createElement("summary");
+      summary.textContent = "View full checklist ("+r.checked+"/"+TOTAL_ITEMS+")";
+      details.appendChild(summary);
+
+      r.breakdown.forEach(section=>{
+        const secWrap = document.createElement("div");
+        secWrap.className = "section-block";
+        secWrap.innerHTML = '<div class="section-block-title">'+escapeHtml(section.title)+'</div>';
+        if(section.sectionNote){
+          const secNoteEl = document.createElement("div");
+          secNoteEl.className = "section-note-line";
+          secNoteEl.innerHTML = "<b>Section note:</b> "+escapeHtml(section.sectionNote);
+          secWrap.appendChild(secNoteEl);
+        }
+        section.items.forEach(item=>{
           const line = document.createElement("div");
-          line.className = "note-line";
-          line.innerHTML = "<b>"+escapeHtml(n.label)+":</b> "+escapeHtml(n.text);
-          details.appendChild(line);
+          line.className = "check-item" + (item.checked ? " checked" : "");
+          line.innerHTML =
+            '<span class="check-mark">'+(item.checked ? "✓" : "○")+'</span>'+
+            '<span class="check-label">'+escapeHtml(item.label)+'</span>' +
+            (item.note ? '<span class="check-note">— '+escapeHtml(item.note)+'</span>' : '');
+          secWrap.appendChild(line);
         });
-        card.appendChild(details);
-      }
+        details.appendChild(secWrap);
+      });
+      card.appendChild(details);
     }
     area.appendChild(card);
   });

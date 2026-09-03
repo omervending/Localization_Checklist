@@ -115,6 +115,7 @@
   </div>
 </div>
 
+<script src="https://cdn.jsdelivr.net/npm/@emailjs/browser@4/dist/email.min.js"></script>
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
 import { initializeFirestore, doc, getDoc, setDoc } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
@@ -133,6 +134,33 @@ const firebaseConfig = {
 };
 
 const CONFIG_IS_PLACEHOLDER = firebaseConfig.apiKey === "YOUR_API_KEY";
+
+/* ─────────────────────────────────────────────────────────────
+   EmailJS settings — sends the admin an email when a language
+   hits 100%. Get these three values from emailjs.com (free).
+   ───────────────────────────────────────────────────────────── */
+const EMAILJS_SERVICE_ID = "service_zq6g92e";
+const EMAILJS_TEMPLATE_ID = "template_bvl1g39";
+const EMAILJS_PUBLIC_KEY = "dNiIdDGmDI0QmZmu9";
+const EMAILJS_IS_PLACEHOLDER = EMAILJS_PUBLIC_KEY === "YOUR_PUBLIC_KEY" || EMAILJS_SERVICE_ID === "YOUR_SERVICE_ID" || EMAILJS_TEMPLATE_ID === "YOUR_TEMPLATE_ID";
+
+if (window.emailjs && !EMAILJS_IS_PLACEHOLDER) {
+  window.emailjs.init({ publicKey: EMAILJS_PUBLIC_KEY });
+}
+
+async function notifyAdminComplete(lang, translatorName){
+  if (EMAILJS_IS_PLACEHOLDER || !window.emailjs) return;
+  try{
+    await window.emailjs.send(EMAILJS_SERVICE_ID, EMAILJS_TEMPLATE_ID, {
+      language: lang,
+      translator_name: translatorName || "(not provided)",
+      completed_at: new Date().toLocaleString()
+    });
+  }catch(err){
+    console.error("Completion email failed to send:", err);
+  }
+}
+
 if (CONFIG_IS_PLACEHOLDER) {
   document.getElementById("config-warning-area").innerHTML =
     '<div class="config-warning">This file still has placeholder Firebase settings. Saving won\u2019t work until the firebaseConfig object near the top of the &lt;script&gt; tag is replaced with your real project config.</div>';
@@ -211,7 +239,7 @@ const TOTAL_ITEMS = SECTIONS.reduce((sum, s) => sum + s.items.length, 0);
 const AUTOSAVE_INTERVAL_MS = 30000;
 
 function blankData(lang){
-  return { language: lang, translatorName: "", items: {}, itemNotes: {}, sectionNotes: {}, lastUpdated: null };
+  return { language: lang, translatorName: "", items: {}, itemNotes: {}, sectionNotes: {}, lastUpdated: null, notifiedComplete: false };
 }
 
 let currentLang = null;
@@ -257,6 +285,7 @@ async function loadLanguage(lang){
   data.items = data.items || {};
   data.itemNotes = data.itemNotes || {};
   data.sectionNotes = data.sectionNotes || {};
+  data.notifiedComplete = data.notifiedComplete || false;
   currentData = data;
   isDirty = false;
   document.getElementById("name-input").value = data.translatorName || "";
@@ -383,11 +412,18 @@ async function saveNow(){
   if(!currentData || !currentLang) return;
   const statusEl = document.getElementById("save-status");
   if(statusEl){ statusEl.textContent = "Saving…"; statusEl.className = "save-status saving"; }
+
+  const checkedCount = SECTIONS.reduce((sum,s)=> sum + s.items.filter(i=>currentData.items[i.id]).length, 0);
+  const isNowComplete = checkedCount === TOTAL_ITEMS;
+  const shouldNotify = isNowComplete && !currentData.notifiedComplete;
+  currentData.notifiedComplete = isNowComplete; // resets to false automatically if items get unchecked later
+
   currentData.lastUpdated = new Date().toISOString();
   try{
     await withTimeout(setDoc(doc(db, COLLECTION, slugify(currentLang)), currentData), 10000);
     isDirty = false;
     if(statusEl){ statusEl.textContent = "Saved "+formatTime(currentData.lastUpdated); statusEl.className = "save-status saved"; }
+    if(shouldNotify){ notifyAdminComplete(currentLang, currentData.translatorName); }
   }catch(err){
     if(statusEl){
       if(err && err.message === "timeout"){
