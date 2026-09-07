@@ -61,6 +61,10 @@
   .check-item.checked{color:var(--dark);}
   .check-item .check-mark{width:14px;flex-shrink:0;font-weight:700;color:var(--neutral-75);}
   .check-item.checked .check-mark{color:#1FAE6B;}
+  .check-item .check-pages{
+    flex-shrink:0;font-size:11px;font-weight:700;color:var(--purple-dark);
+    background:var(--purple-tint);border-radius:5px;padding:1px 6px;min-width:34px;text-align:center;
+  }
   .check-item .check-label{flex-shrink:0;}
   .check-item .check-note{color:var(--gray-3);font-style:italic;}
   @media (max-width:520px){ .app{padding:16px 14px 50px;} }
@@ -148,13 +152,13 @@ const LANGUAGES = [
 
 const SECTIONS = [
   { id:"s1", title:"Screens → MoMa 2.0", items:[
-    {id:"general_text", label:"General text for translations"},
+    {id:"general_text", label:"General text for translations", subpages:3},
     {id:"login_page", label:"Login page"},
     {id:"tasks", label:"Tasks"},
-    {id:"machine", label:"Machine"},
+    {id:"machine", label:"Machine", subpages:16},
     {id:"dashboards", label:"Dashboards"},
     {id:"alerts", label:"Alerts"},
-    {id:"more", label:"More"}
+    {id:"more", label:"More", subpages:3}
   ]},
   { id:"s2", title:"Actor Types", items:[
     {id:"actor_types", label:"Actor Types"}
@@ -243,7 +247,9 @@ function renderOverview(bySlug){
       items: s.items.map(i=>({
         label: i.label,
         checked: !!(data.items && data.items[i.id]),
-        note: (data.itemNotes && data.itemNotes[i.id]) ? data.itemNotes[i.id].trim() : ""
+        note: (data.itemNotes && data.itemNotes[i.id]) ? data.itemNotes[i.id].trim() : "",
+        subpages: i.subpages || null,
+        subCount: i.subpages ? Math.min(i.subpages, (data.subProgress && data.subProgress[i.id]) || 0) : null
       }))
     }));
     return { lang, started:true, checked, pct, translatorName: data.translatorName || "", lastUpdated: data.lastUpdated, breakdown };
@@ -294,8 +300,11 @@ function renderOverview(bySlug){
         section.items.forEach(item=>{
           const line = document.createElement("div");
           line.className = "check-item" + (item.checked ? " checked" : "");
+          const markOrCount = item.subpages
+            ? '<span class="check-pages">'+item.subCount+'/'+item.subpages+'</span>'
+            : '<span class="check-mark">'+(item.checked ? "✓" : "○")+'</span>';
           line.innerHTML =
-            '<span class="check-mark">'+(item.checked ? "✓" : "○")+'</span>'+
+            markOrCount+
             '<span class="check-label">'+escapeHtml(item.label)+'</span>' +
             (item.note ? '<span class="check-note">— '+escapeHtml(item.note)+'</span>' : '');
           secWrap.appendChild(line);
