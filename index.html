@@ -55,6 +55,16 @@
   .item-row.checked .item-main label{color:var(--gray-3);text-decoration:line-through;text-decoration-color:var(--neutral-70);}
   .item-note{margin-top:6px;width:100%;padding:6px 10px;font-size:12.5px;border:1px solid var(--neutral-75);border-radius:6px;color:var(--dark);}
   .item-note::placeholder{color:#A8A8A8;}
+  .subpage-controls{display:flex;align-items:center;gap:10px;margin-top:8px;}
+  .subpage-track{flex:1;}
+  .subpage-count{font-size:12px;font-weight:600;color:var(--gray-3);white-space:nowrap;min-width:64px;}
+  .subpage-btn{
+    width:26px;height:26px;border-radius:7px;border:1px solid var(--neutral-75);background:var(--white);
+    font-size:16px;line-height:1;font-weight:700;color:var(--purple-dark);cursor:pointer;flex-shrink:0;
+  }
+  .subpage-btn:hover:not(:disabled){background:var(--purple-tint);}
+  .subpage-btn:disabled{opacity:.35;cursor:not-allowed;}
+  .item-row input[type=checkbox]:disabled{cursor:default;opacity:.6;}
   .section-note-wrap{padding:12px 18px;background:var(--neutral-80);}
   .section-note-wrap label{font-size:11px;font-weight:700;color:var(--gray-3);display:block;margin-bottom:5px;}
   .section-note-wrap textarea{min-height:44px;resize:vertical;font-size:13px;}
@@ -82,6 +92,7 @@
     <div class="brand-mark"></div>
     <div>
       <h1>MoMa 2.0 Translation Checklist</h1>
+      <span>Your progress saves automatically as you go</span>
     </div>
   </div>
 
@@ -109,7 +120,7 @@
   <div id="checklist-area">
     <div class="empty-state">
       <h2>Pick a language to begin</h2>
-      <p>Your checkboxes and notes can be saved, so you can always pick this checklist back up later.</p>
+      <p>Your checkboxes and notes save automatically, and you can always pick this checklist back up later.</p>
     </div>
   </div>
 </div>
@@ -182,13 +193,13 @@ const LANGUAGES = [
 
 const SECTIONS = [
   { id:"s1", step:"Step 1", title:"Screens → MoMa 2.0", items:[
-    {id:"general_text", label:"General text for translations"},
+    {id:"general_text", label:"General text for translations", subpages:3},
     {id:"login_page", label:"Login page"},
     {id:"tasks", label:"Tasks"},
-    {id:"machine", label:"Machine"},
+    {id:"machine", label:"Machine", subpages:16},
     {id:"dashboards", label:"Dashboards"},
     {id:"alerts", label:"Alerts"},
-    {id:"more", label:"More"}
+    {id:"more", label:"More", subpages:3}
   ]},
   { id:"s2", step:"Step 2", title:"Actor Types", items:[
     {id:"actor_types", label:"Actor Types"}
@@ -238,7 +249,7 @@ const TOTAL_ITEMS = SECTIONS.reduce((sum, s) => sum + s.items.length, 0);
 const AUTOSAVE_INTERVAL_MS = 30000;
 
 function blankData(lang){
-  return { language: lang, translatorName: "", items: {}, itemNotes: {}, sectionNotes: {}, lastUpdated: null, notifiedComplete: false };
+  return { language: lang, translatorName: "", items: {}, itemNotes: {}, sectionNotes: {}, subProgress: {}, lastUpdated: null, notifiedComplete: false };
 }
 
 let currentLang = null;
@@ -284,6 +295,7 @@ async function loadLanguage(lang){
   data.items = data.items || {};
   data.itemNotes = data.itemNotes || {};
   data.sectionNotes = data.sectionNotes || {};
+  data.subProgress = data.subProgress || {};
   data.notifiedComplete = data.notifiedComplete || false;
   currentData = data;
   isDirty = false;
@@ -294,7 +306,141 @@ async function loadLanguage(lang){
 function renderEmpty(){
   document.getElementById("checklist-area").innerHTML =
     '<div class="empty-state"><h2>Pick a language to begin</h2>' +
-    '<p>Your checkboxes and notes can be saved, so you can always pick this checklist back up later.</p></div>';
+    '<p>Your checkboxes and notes save automatically, and you can always pick this checklist back up later.</p></div>';
+}
+
+function renderCheckboxRow(item){
+  const row = document.createElement("div");
+  const isChecked = !!currentData.items[item.id];
+  row.className = "item-row" + (isChecked ? " checked" : "");
+
+  const cb = document.createElement("input");
+  cb.type = "checkbox";
+  cb.checked = isChecked;
+  cb.id = "chk-"+item.id;
+  cb.addEventListener("change", ()=>{
+    currentData.items[item.id] = cb.checked;
+    row.classList.toggle("checked", cb.checked);
+    updateProgress();
+    markDirty();
+  });
+
+  const main = document.createElement("div");
+  main.className = "item-main";
+  const label = document.createElement("label");
+  label.setAttribute("for","chk-"+item.id);
+  label.textContent = item.label;
+  main.appendChild(label);
+
+  const note = document.createElement("input");
+  note.type = "text";
+  note.className = "item-note";
+  note.placeholder = "Note to self (optional)";
+  note.value = currentData.itemNotes[item.id] || "";
+  note.addEventListener("input", ()=>{
+    currentData.itemNotes[item.id] = note.value;
+    markDirty();
+  });
+  main.appendChild(note);
+
+  row.appendChild(cb);
+  row.appendChild(main);
+  return row;
+}
+
+function renderSubpageRow(item){
+  const total = item.subpages;
+  const getCount = ()=> Math.min(total, Math.max(0, currentData.subProgress[item.id] || 0));
+
+  const row = document.createElement("div");
+  const count = getCount();
+  const isChecked = count >= total;
+  row.className = "item-row" + (isChecked ? " checked" : "");
+
+  const cb = document.createElement("input");
+  cb.type = "checkbox";
+  cb.checked = isChecked;
+  cb.disabled = true;
+  cb.title = "Checks automatically once all pages are marked done";
+  cb.id = "chk-"+item.id;
+
+  const main = document.createElement("div");
+  main.className = "item-main";
+
+  const label = document.createElement("label");
+  label.setAttribute("for","chk-"+item.id);
+  label.textContent = item.label;
+  main.appendChild(label);
+
+  const subWrap = document.createElement("div");
+  subWrap.className = "subpage-controls";
+
+  const minusBtn = document.createElement("button");
+  minusBtn.type = "button";
+  minusBtn.className = "subpage-btn";
+  minusBtn.textContent = "−";
+
+  const track = document.createElement("div");
+  track.className = "progress-track subpage-track";
+  const fill = document.createElement("div");
+  fill.className = "progress-fill";
+  track.appendChild(fill);
+
+  const countText = document.createElement("span");
+  countText.className = "subpage-count";
+
+  const plusBtn = document.createElement("button");
+  plusBtn.type = "button";
+  plusBtn.className = "subpage-btn";
+  plusBtn.textContent = "+";
+
+  function refresh(){
+    const c = getCount();
+    const pct = total ? Math.round((c/total)*100) : 0;
+    fill.style.width = pct+"%";
+    countText.textContent = c+" / "+total+" pages";
+    minusBtn.disabled = c <= 0;
+    plusBtn.disabled = c >= total;
+    const nowChecked = c >= total;
+    currentData.items[item.id] = nowChecked;
+    row.classList.toggle("checked", nowChecked);
+    cb.checked = nowChecked;
+  }
+
+  minusBtn.addEventListener("click", ()=>{
+    currentData.subProgress[item.id] = Math.max(0, getCount()-1);
+    refresh();
+    updateProgress();
+    markDirty();
+  });
+  plusBtn.addEventListener("click", ()=>{
+    currentData.subProgress[item.id] = Math.min(total, getCount()+1);
+    refresh();
+    updateProgress();
+    markDirty();
+  });
+
+  subWrap.appendChild(minusBtn);
+  subWrap.appendChild(track);
+  subWrap.appendChild(countText);
+  subWrap.appendChild(plusBtn);
+  main.appendChild(subWrap);
+
+  const note = document.createElement("input");
+  note.type = "text";
+  note.className = "item-note";
+  note.placeholder = "Note to self (optional)";
+  note.value = currentData.itemNotes[item.id] || "";
+  note.addEventListener("input", ()=>{
+    currentData.itemNotes[item.id] = note.value;
+    markDirty();
+  });
+  main.appendChild(note);
+
+  row.appendChild(cb);
+  row.appendChild(main);
+  refresh();
+  return row;
 }
 
 function renderChecklist(){
@@ -314,42 +460,11 @@ function renderChecklist(){
     card.appendChild(head);
 
     section.items.forEach(item=>{
-      const row = document.createElement("div");
-      const isChecked = !!currentData.items[item.id];
-      row.className = "item-row" + (isChecked ? " checked" : "");
-
-      const cb = document.createElement("input");
-      cb.type = "checkbox";
-      cb.checked = isChecked;
-      cb.id = "chk-"+item.id;
-      cb.addEventListener("change", ()=>{
-        currentData.items[item.id] = cb.checked;
-        row.classList.toggle("checked", cb.checked);
-        updateProgress();
-        markDirty();
-      });
-
-      const main = document.createElement("div");
-      main.className = "item-main";
-      const label = document.createElement("label");
-      label.setAttribute("for","chk-"+item.id);
-      label.textContent = item.label;
-      main.appendChild(label);
-
-      const note = document.createElement("input");
-      note.type = "text";
-      note.className = "item-note";
-      note.placeholder = "Note to self (optional)";
-      note.value = currentData.itemNotes[item.id] || "";
-      note.addEventListener("input", ()=>{
-        currentData.itemNotes[item.id] = note.value;
-        markDirty();
-      });
-      main.appendChild(note);
-
-      row.appendChild(cb);
-      row.appendChild(main);
-      card.appendChild(row);
+      if(item.subpages){
+        card.appendChild(renderSubpageRow(item));
+      } else {
+        card.appendChild(renderCheckboxRow(item));
+      }
     });
 
     const noteWrap = document.createElement("div");
