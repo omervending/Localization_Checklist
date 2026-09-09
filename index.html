@@ -92,6 +92,7 @@
     <div class="brand-mark"></div>
     <div>
       <h1>MoMa 2.0 Translation Checklist</h1>
+      <span>Your progress saves automatically as you go</span>
     </div>
   </div>
 
@@ -119,7 +120,7 @@
   <div id="checklist-area">
     <div class="empty-state">
       <h2>Pick a language to begin</h2>
-      <p>Your checkboxes and notes can be saved, so you can always pick this checklist back up later.</p>
+      <p>Your checkboxes and notes save automatically, and you can always pick this checklist back up later.</p>
     </div>
   </div>
 </div>
@@ -158,15 +159,20 @@ if (window.emailjs && !EMAILJS_IS_PLACEHOLDER) {
 }
 
 async function notifyAdminComplete(lang, translatorName){
-  if (EMAILJS_IS_PLACEHOLDER || !window.emailjs) return;
+  if (EMAILJS_IS_PLACEHOLDER || !window.emailjs) {
+    console.warn("Completion email skipped: EmailJS not fully configured.");
+    return { ok:false, reason:"not-configured" };
+  }
   try{
     await window.emailjs.send(EMAILJS_SERVICE_ID, EMAILJS_TEMPLATE_ID, {
       language: lang,
       translator_name: translatorName || "(not provided)",
       completed_at: new Date().toLocaleString()
     });
+    return { ok:true };
   }catch(err){
     console.error("Completion email failed to send:", err);
+    return { ok:false, reason: (err && (err.text || err.message)) || "unknown error" };
   }
 }
 
@@ -305,7 +311,7 @@ async function loadLanguage(lang){
 function renderEmpty(){
   document.getElementById("checklist-area").innerHTML =
     '<div class="empty-state"><h2>Pick a language to begin</h2>' +
-    '<p>Your checkboxes and notes can be saved, so you can always pick this checklist back up later.</p></div>';
+    '<p>Your checkboxes and notes save automatically, and you can always pick this checklist back up later.</p></div>';
 }
 
 function renderCheckboxRow(item){
@@ -536,7 +542,17 @@ async function saveNow(){
     await withTimeout(setDoc(doc(db, COLLECTION, slugify(currentLang)), currentData), 10000);
     isDirty = false;
     if(statusEl){ statusEl.textContent = "Saved "+formatTime(currentData.lastUpdated); statusEl.className = "save-status saved"; }
-    if(shouldNotify){ notifyAdminComplete(currentLang, currentData.translatorName); }
+    if(shouldNotify){
+      const result = await notifyAdminComplete(currentLang, currentData.translatorName);
+      if(statusEl){
+        if(result.ok){
+          statusEl.textContent = "Saved "+formatTime(currentData.lastUpdated)+" · 100%! Admin notified by email.";
+        } else if(result.reason !== "not-configured"){
+          statusEl.textContent = "Saved "+formatTime(currentData.lastUpdated)+" · but the completion email failed to send ("+result.reason+").";
+          statusEl.className = "save-status error";
+        }
+      }
+    }
   }catch(err){
     if(statusEl){
       if(err && err.message === "timeout"){
