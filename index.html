@@ -92,7 +92,6 @@
     <div class="brand-mark"></div>
     <div>
       <h1>MoMa 2.0 Translation Checklist</h1>
-      <span>Your progress saves automatically as you go</span>
     </div>
   </div>
 
@@ -120,7 +119,7 @@
   <div id="checklist-area">
     <div class="empty-state">
       <h2>Pick a language to begin</h2>
-      <p>Your checkboxes and notes save automatically, and you can always pick this checklist back up later.</p>
+      <p>You can save your notes and checkboxes.</p>
     </div>
   </div>
 </div>
@@ -311,7 +310,7 @@ async function loadLanguage(lang){
 function renderEmpty(){
   document.getElementById("checklist-area").innerHTML =
     '<div class="empty-state"><h2>Pick a language to begin</h2>' +
-    '<p>Your checkboxes and notes save automatically, and you can always pick this checklist back up later.</p></div>';
+    '<p>You can save your notes and checkboxes.</p></div>';
 }
 
 function renderCheckboxRow(item){
@@ -566,7 +565,7 @@ async function saveNow(){
 }
 
 function formatTime(iso){
-  try{ return new Date(iso).toLocaleTimeString([], {hour:"2-digit", minute:"2-digit"}); }catch(e){ return ""; }
+  try{ return new Date(iso).toLocaleString([], {dateStyle:"medium", timeStyle:"short"}); }catch(e){ return ""; }
 }
 
 setInterval(()=>{ if(isDirty && currentData && currentLang){ saveNow(); } }, AUTOSAVE_INTERVAL_MS);
